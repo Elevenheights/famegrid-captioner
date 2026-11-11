@@ -28,10 +28,11 @@ The app has been smoke-tested on Windows. macOS and Linux have not been visually
 
 - Add one or more image folders; optionally include their subfolders.
 - Add caption hints directly to folder names using underscore-prefixed phrases, such as `_red jacket _standing` (see **Folder-name hints** below).
-- Select a provider and an image-capable model available to your account. The model name is editable; **Refresh models** lists candidates, but does not verify image support. Defaults are inherited from the original script.
+- Choose **OpenAI** or **Grok** using the **Primary provider** buttons. Neither is selected on startup; you must choose before starting. Grok can caption images directly with only an xAI/Grok key; an OpenAI key is not required for Grok.
+- Select an image-capable model available to your chosen provider account. Selecting a provider fills in its default model name. The name is editable; **Refresh models** lists candidates, but does not verify image support. Defaults are inherited from the original script.
 - Set the trigger word and subject class, or enable **Class varies** to choose a class per image.
 - Choose caption categories, detail level, target length, and parallel image count.
-- Optionally edit the prompt override or enable automatic Grok fallback when both providers are configured.
+- Optionally edit the prompt override. When **OpenAI** is primary, you may also enable **Optional: fall back to Grok if OpenAI fails or refuses** with both providers configured. Fallback is off by default. When **Grok** is primary, it handles requests directly and the fallback checkbox is disabled.
 - Start captioning. Existing sidecar captions are skipped unless **Overwrite existing .txt captions** is enabled.
 
 Supported filename extensions: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, and `.bmp`. Providers may reject formats or images they do not support. Images are sent to the selected API provider; successful captions can incur API charges, including retries and fallback calls.

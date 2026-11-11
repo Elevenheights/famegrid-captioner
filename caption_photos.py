@@ -988,13 +988,13 @@ class CaptionApp:
         self.root.minsize(700, 520)
 
         self.folders = []
-        self.provider_var = tk.StringVar(value="OpenAI")
-        self.model_var = tk.StringVar(value=MODEL_NAME)
+        self.provider_var = tk.StringVar(value="")
+        self.model_var = tk.StringVar(value="")
         self.workers_var = tk.IntVar(value=MAX_WORKERS)
         self.overwrite_var = tk.BooleanVar(value=OVERWRITE_EXISTING_CAPTIONS)
         self.delete_orphans_var = tk.BooleanVar(value=DELETE_ORPHANED_CAPTIONS)
         self.include_subfolders_var = tk.BooleanVar(value=True)
-        self.fallback_var = tk.BooleanVar(value=True)
+        self.fallback_var = tk.BooleanVar(value=False)
         self.local_tagger_var = tk.BooleanVar(value=False)
         self.tag_threshold_var = tk.DoubleVar(value=WD_TAG_THRESHOLD)
         self.trigger_word_var = tk.StringVar(value=TRIGGER_PHRASE)
@@ -1047,17 +1047,23 @@ class CaptionApp:
             fill="x", pady=(4, 0)
         )
 
-        ttk.Label(outer, text="Provider").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=5)
-        provider_box = ttk.Combobox(
-            outer, textvariable=self.provider_var, values=("OpenAI", "Grok"), state="readonly", width=16
-        )
-        provider_box.grid(row=1, column=1, sticky="w", pady=5)
-        provider_box.bind("<<ComboboxSelected>>", self.provider_changed)
+        ttk.Label(outer, text="Primary provider").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=5)
+        provider_options = ttk.Frame(outer)
+        provider_options.grid(row=1, column=1, columnspan=2, sticky="w", pady=5)
+        self.provider_buttons = {}
+        for provider in ("OpenAI", "Grok"):
+            button = ttk.Radiobutton(
+                provider_options, text=provider, value=provider,
+                variable=self.provider_var, command=self.provider_changed,
+            )
+            button.pack(side="left", padx=(0, 16))
+            self.provider_buttons[provider] = button
+        ttk.Label(provider_options, text="Choose which provider captions your images.").pack(side="left")
 
         ttk.Label(outer, text="Model").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=5)
         self.model_box = ttk.Combobox(outer, textvariable=self.model_var)
         self.model_box.grid(row=2, column=1, sticky="ew", pady=5)
-        self.refresh_button = ttk.Button(outer, text="Refresh models", command=self.refresh_models)
+        self.refresh_button = ttk.Button(outer, text="Refresh models", command=self.refresh_models, state="disabled")
         self.refresh_button.grid(row=2, column=2, padx=(8, 0), pady=5)
 
         ttk.Label(outer, text="Parallel images").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=5)
@@ -1127,11 +1133,13 @@ class CaptionApp:
             row=3, column=0, columnspan=4, sticky="w", pady=(4, 0)
         )
 
-        ttk.Checkbutton(
+        self.fallback_button = ttk.Checkbutton(
             outer,
-            text="Use Grok automatically when an OpenAI request fails or is refused",
+            text="Optional: fall back to Grok if OpenAI fails or refuses (requires a Grok API key)",
             variable=self.fallback_var,
-        ).grid(row=6, column=0, columnspan=3, sticky="w", pady=(2, 10))
+            state="disabled",
+        )
+        self.fallback_button.grid(row=6, column=0, columnspan=3, sticky="w", pady=(2, 10))
 
         tagger_frame = ttk.LabelFrame(outer, text="Optional local tag pre-scan", padding=8)
         tagger_frame.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(0, 10))
@@ -1317,6 +1325,10 @@ class CaptionApp:
         default = MODEL_NAME if self.provider_var.get() == "OpenAI" else GROK_DEFAULT_MODEL
         self.model_var.set(default)
         self.model_box["values"] = ()
+        self.refresh_button.configure(state="normal")
+        self.fallback_button.configure(
+            state="normal" if self.provider_var.get() == "OpenAI" else "disabled"
+        )
 
     def log(self, message):
         def append():
@@ -1350,6 +1362,8 @@ class CaptionApp:
 
     def _models_loaded(self, provider, models):
         self.refresh_button.configure(state="normal")
+        if provider != self.provider_var.get():
+            return
         self.model_box["values"] = models
         if models and self.model_var.get() not in models:
             preferred = MODEL_NAME if provider == "OpenAI" else choose_grok_fallback(models)
@@ -1364,6 +1378,9 @@ class CaptionApp:
     def start_captioning(self):
         folders = list(self.folders)
         provider = self.provider_var.get()
+        if provider not in ("OpenAI", "Grok"):
+            messagebox.showerror("Choose a provider", "Choose OpenAI or Grok as your primary captioning provider.")
+            return
         model = self.model_var.get().strip()
         use_local_tagger = self.local_tagger_var.get()
         prompt_override = self.prompt_override_box.get("1.0", "end-1c").strip()
@@ -1432,7 +1449,7 @@ class CaptionApp:
             "overwrite": self.overwrite_var.get(),
             "delete_orphans": self.delete_orphans_var.get(),
             "include_subfolders": self.include_subfolders_var.get(),
-            "use_fallback": self.fallback_var.get(),
+            "use_fallback": provider == "OpenAI" and self.fallback_var.get(),
             "use_local_tagger": use_local_tagger,
             "tag_threshold": tag_threshold,
             "max_characters": caption_length,
