@@ -27,6 +27,7 @@ The app has been smoke-tested on Windows. macOS and Linux have not been visually
 ## Captioning images
 
 - Add one or more image folders; optionally include their subfolders.
+- Add caption hints directly to folder names using underscore-prefixed phrases, such as `_red jacket _standing` (see **Folder-name hints** below).
 - Select a provider and an image-capable model available to your account. The model name is editable; **Refresh models** lists candidates, but does not verify image support. Defaults are inherited from the original script.
 - Set the trigger word and subject class, or enable **Class varies** to choose a class per image.
 - Choose caption categories, detail level, target length, and parallel image count.
@@ -51,7 +52,41 @@ On Windows, use `.venv\Scripts\python.exe -m pip install -r requirements-tagger.
 
 Enable the local WD EVA02-Large v3 pre-scan in the app. The first run downloads model files from `SmilingWolf/wd-eva02-large-tagger-v3` on Hugging Face; allow disk space and download time. Review the model's own license and usage terms separately. The tagger is optional; ordinary captioning does not require these dependencies.
 
-## Optional metadata
+## Folder-name hints
+
+You can tell the captioner what to include by putting an underscore before a phrase in an image folder's name. No CSV or JSON file is required.
+
+For example, name a folder `_red jacket`, put the relevant images inside, and add that folder in the app. The captioner asks the model to include the exact phrase `red jacket` naturally in each image's caption.
+
+Use a space followed by another underscore to separate multiple hints:
+
+```text
+_red jacket                    -> red jacket
+_red jacket _standing          -> red jacket; standing
+Session 01 _blue dress _garden -> blue dress; garden
+_long-haired                   -> long haired
+my_photos                      -> no hints
+```
+
+The underscore must begin a phrase: put it at the start of the folder name or after a space. Use spaces within a phrase; use ` _` to start the next hint. Hyphens within a hint become spaces. All words after a hint's underscore belong to that hint until the next ` _` or the end of the name, so put ordinary folder labels before the first hint.
+
+When scanning subfolders, hints are collected from the image's own folder up through the folder you added to the queue. For example:
+
+```text
+Dataset _red jacket/           <- add this folder with Include subfolders enabled
+    _standing/
+        image001.jpg           <- gets standing and red jacket
+    _seated/
+        image002.jpg           <- gets seated and red jacket
+```
+
+Folders above the queued folder do not contribute hints. If you add only `_standing` to the queue, the parent folder's `red jacket` hint will not be included.
+
+Folder hints take priority over conflicting visual interpretations, per-image metadata, and machine-generated tags. The app checks for each hint's phrase in the generated caption and retries once if a phrase is missing; it reports a failure if the retry still omits it. Use accurate, non-conflicting hints that apply to the images in that folder. Highlight/shadow analysis remains excluded.
+
+Existing captions are skipped by default. To apply newly added folder hints to images that already have `.txt` captions, enable **Overwrite existing .txt captions** and run captioning again.
+
+## Optional metadata files
 
 In an image folder, add `subject_metadata.csv` with these columns:
 
@@ -69,7 +104,7 @@ Folder hints can also be supplied in `caption_folder_hints.json`:
 }
 ```
 
-Underscore-prefixed folder phrases also become hints (for example `_red jacket`). Hints and tags influence the description; only supply accurate labels. The highlight/shadow exclusion applies to these inputs too.
+JSON hints are combined with folder-name hints. Hints and tags influence the description; only supply accurate labels. The highlight/shadow exclusion applies to these inputs too.
 
 ## Development
 
